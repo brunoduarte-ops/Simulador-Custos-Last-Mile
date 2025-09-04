@@ -3,16 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador Interativo de Custos Last Mile</title>
+    <title>Simulador de Custos - Last Mile</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Slate & Amber -->
-    <!-- Application Structure Plan: A dashboard-style layout was chosen to provide an intuitive and interactive experience. The screen is split into two main columns. The left column contains all user-adjustable inputs (e.g., number of couriers, costs), using sliders for immediate tactile feedback. The right column displays the results in real-time through KPI cards and a dynamic line chart. This cause-and-effect structure allows users to instantly see how changing a variable impacts profitability and the break-even point, which is the core goal of the simulator. The flow is simple: adjust inputs on the left, and observe outputs on the right. -->
-    <!-- Visualization & Content Choices: Inputs are represented by sliders and number fields for interactivity. Key outputs (profit, revenue, costs) are shown in large, clear KPI cards for quick assessment. The central visualization is a Chart.js line chart plotting revenue, costs, and profit against order volume. This directly addresses the user's need to visualize profitability and the break-even point (where cost and revenue lines intersect). The choice of a line chart is ideal for showing trends and relationships over a continuous variable like volume. All interactions trigger a recalculation and UI update, providing a seamless simulation experience. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -85,13 +81,30 @@
                 height: 50vh;
             }
         }
+        .disabled-overlay {
+            position: relative;
+        }
+        .disabled-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(248, 250, 252, 0.7);
+            cursor: not-allowed;
+            z-index: 10;
+        }
+        .disabled-overlay label, .disabled-overlay input {
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="text-slate-800">
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Simulador Interativo de Custos Last Mile</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Simulador de Custos - Last Mile</h1>
             <p class="mt-2 text-lg text-slate-600">Ajuste os parâmetros para encontrar o ponto de equilíbrio e otimizar sua operação.</p>
         </header>
 
@@ -99,7 +112,7 @@
             
             <aside class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold mb-1 text-slate-900">Parâmetros da Operação</h2>
-                <p class="text-sm text-slate-500 mb-6">Utilize os controles deslizantes para testar diferentes cenários operacionais e financeiros. As mudanças serão refletidas instantaneamente nos resultados ao lado.</p>
+                <p class="text-sm text-slate-500 mb-6">Utilize os controles deslizantes e os campos de texto para testar diferentes cenários operacionais e financeiros. As mudanças serão refletidas instantaneamente nos resultados ao lado.</p>
 
                 <div id="input-form" class="space-y-6">
                     
@@ -115,8 +128,8 @@
                                 <input type="range" id="pedidosPorEntregador" min="1" max="100" value="18" class="w-full">
                             </div>
                              <div>
-                                <label for="volumetriaTotal" class="slider-label"><span>Volumetria total de pedidos / mês</span><span class="slider-value" id="volumetriaTotalValue">1000</span></label>
-                                <input type="range" id="volumetriaTotal" min="100" max="20000" value="1000" step="100" class="w-full">
+                                <label for="volumetriaTotal" class="block text-sm font-medium text-slate-600 mb-1">Volumetria total de pedidos / mês</label>
+                                <input type="number" id="volumetriaTotal" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500" placeholder="Ex: 1000" value="1000" min="0">
                             </div>
                              <div>
                                 <label for="kmPorEntrega" class="slider-label"><span>Média de km / entrega</span><span class="slider-value" id="kmPorEntregaValue">5</span></label>
@@ -125,15 +138,26 @@
                         </div>
                     </div>
 
-                    <div>
+                    <div id="minWageSection">
+                         <h3 class="font-semibold text-slate-700 border-b pb-2 mb-3">Condições de Remuneração</h3>
+                         <div class="space-y-4">
+                            <div>
+                                <label for="salarioMinimoDiarioSlider" class="slider-label"><span>Salário Mínimo Diário Esperado (R$)</span><span class="slider-value" id="salarioMinimoDiarioSliderValue">0.00</span></label>
+                                <input type="range" id="salarioMinimoDiarioSlider" min="0" max="300" value="0" step="5" class="w-full">
+                                <p class="text-xs text-slate-400 mt-2">Se um valor for selecionado, este será o custo diário, ignorando o modelo de pagamento.</p>
+                            </div>
+                         </div>
+                    </div>
+
+                    <div id="paymentSection">
                         <h3 class="font-semibold text-slate-700 border-b pb-2 mb-3">Custos e Pagamento</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="font-medium text-sm text-slate-600">Modelo de Pagamento ao Entregador</label>
+                                <label class="font-medium text-sm text-slate-600">Modelo de Pagamento atual ao Entregador</label>
                                 <div class="flex items-center space-x-4 mt-2 text-sm">
                                     <label><input type="radio" name="paymentModel" value="km" class="mr-1"> R$/km</label>
-                                    <label><input type="radio" name="paymentModel" value="pedido" checked class="mr-1"> R$/pedido</label>
-                                    <label><input type="radio" name="paymentModel" value="diaria" class="mr-1"> R$/diária</label>
+                                    <label><input type="radio" name="paymentModel" value="diaria" checked class="mr-1"> R$/diária</label>
+                                    <label><input type="radio" name="paymentModel" value="pedido" class="mr-1"> R$/pedido</label>
                                 </div>
                             </div>
                              <div>
@@ -141,23 +165,41 @@
                                 <input type="range" id="valorKm" min="0.1" max="10" value="2.5" step="0.1" class="w-full">
                             </div>
                             <div>
-                                <label for="valorPedido" class="slider-label"><span>Valor por pedido (R$)</span><span class="slider-value" id="valorPedidoValue">15.00</span></label>
-                                <input type="range" id="valorPedido" min="1" max="50" value="15" step="0.5" class="w-full">
+                                <label for="valorDiaria" class="slider-label"><span>Valor da diária (R$)</span><span class="slider-value" id="valorDiariaValue">150.00</span></label>
+                                <input type="range" id="valorDiaria" min="50" max="300" value="150" step="1" class="w-full">
                             </div>
                             <div>
-                                <label for="valorDiaria" class="slider-label"><span>Valor da diária (R$)</span><span class="slider-value" id="valorDiariaValue">150</span></label>
-                                <input type="range" id="valorDiaria" min="50" max="300" value="150" class="w-full">
+                                <label for="valorPedido" class="slider-label"><span>Valor por pedido (R$)</span><span class="slider-value" id="valorPedidoValue">4.00</span></label>
+                                <input type="range" id="valorPedido" min="1" max="15" value="4" step="0.25" class="w-full">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-semibold text-slate-700 border-b pb-2 mb-3">Custos Fixos Mensais</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="salariosEncargos" class="block text-sm font-medium text-slate-600 mb-1">Salários e encargos (R$)</label>
+                                <input type="number" id="salariosEncargos" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500" placeholder="0,00" value="10000" min="0">
                             </div>
                             <div>
-                                <label for="custoFixo" class="slider-label"><span>Custos fixos mensais (R$)</span><span class="slider-value" id="custoFixoValue">25000</span></label>
-                                <input type="range" id="custoFixo" min="0" max="100000" value="25000" step="500" class="w-full">
+                                <label for="tecnologia" class="block text-sm font-medium text-slate-600 mb-1">Tecnologia (R$)</label>
+                                <input type="number" id="tecnologia" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500" placeholder="0,00" value="5000" min="0">
                             </div>
+                            <div>
+                                <label for="operacional" class="block text-sm font-medium text-slate-600 mb-1">Operacional (R$)</label>
+                                <input type="number" id="operacional" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500" placeholder="0,00" value="5000" min="0">
+                            </div>
+                            <div>
+                                <label for="outros" class="block text-sm font-medium text-slate-600 mb-1">Outros (R$)</label>
+                                <input type="number" id="outros" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500" placeholder="0,00" value="5000" min="0">
+                            </div>
+                        </div>
+                    </div>
                             <div>
                                 <label for="custoVariavelPedido" class="slider-label"><span>Custo variável / pedido (R$)</span><span class="slider-value" id="custoVariavelPedidoValue">1.25</span></label>
                                 <input type="range" id="custoVariavelPedido" min="0" max="10" value="1.25" step="0.05" class="w-full">
                             </div>
-                        </div>
-                    </div>
                     
                     <div>
                         <h3 class="font-semibold text-slate-700 border-b pb-2 mb-3">Receita</h3>
@@ -168,45 +210,85 @@
                             </div>
                         </div>
                     </div>
+
+                    <div id="targetSection">
+                        <h3 class="font-semibold text-slate-700 border-b pb-2 mb-3">Projeções para o Custo Alvo</h3>
+                        <div class="space-y-4">
+                             <div>
+                                <label class="font-medium text-sm text-slate-600">Modelo de Custo Alvo</label>
+                                <div class="flex items-center space-x-4 mt-2 text-sm">
+                                    <label><input type="radio" name="targetModel" value="km" class="mr-1"> R$/km</label>
+                                    <label><input type="radio" name="targetModel" value="diaria" checked class="mr-1"> R$/diária</label>
+                                    <label><input type="radio" name="targetModel" value="pedido" class="mr-1"> R$/pedido</label>
+                                </div>
+                            </div>
+                             <div>
+                                <label id="targetLabel" for="custoAlvoSlider" class="slider-label"><span>Valor do Custo Alvo (R$)</span><span class="slider-value" id="custoAlvoSliderValue">150.00</span></label>
+                                <input type="range" id="custoAlvoSlider" min="50" max="300" value="150" step="1" class="w-full">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </aside>
 
             <section class="lg:col-span-2 space-y-8">
                  <div>
-                    <h2 class="text-xl font-bold mb-1 text-slate-900">Resultados e Projeções</h2>
+                    <h2 class="text-xl font-bold mb-1 text-slate-900">Resultados do Cenário Atual</h2>
                     <p class="text-sm text-slate-500 mb-4">Estes são os principais indicadores financeiros da sua operação, calculados com base nos parâmetros definidos. Eles são atualizados automaticamente a cada ajuste que você faz.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                         <div class="kpi-card text-center">
                             <h4 class="text-sm font-medium text-slate-500">Receita Total Mensal</h4>
                             <p id="receitaTotal" class="text-2xl md:text-3xl font-bold text-amber-600 mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">Volumetria total * Receita média por pedido</p>
                         </div>
                         <div class="kpi-card text-center">
                             <h4 class="text-sm font-medium text-slate-500">Custo Total Mensal</h4>
                             <p id="custoTotal" class="text-2xl md:text-3xl font-bold text-red-600 mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">Custos Fixos + Custos Variáveis + Custos com Entregadores</p>
                         </div>
                         <div class="kpi-card text-center">
                             <h4 class="text-sm font-medium text-slate-500">Lucro / Prejuízo</h4>
                             <p id="lucroPrejuizo" class="text-2xl md:text-3xl font-bold mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">Receita Total - Custo Total</p>
                         </div>
                         <div class="kpi-card text-center">
-                            <h4 class="text-sm font-medium text-slate-500">Pedidos / Mês</h4>
-                            <p id="volumetriaTotalOutput" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0</p>
+                            <h4 class="text-sm font-medium text-slate-500">Ponto de Equilíbrio (Break-Even)</h4>
+                            <p id="breakEvenPoint" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0 pedidos</p>
+                            <p class="text-xs text-slate-400 mt-1">Pedidos necessários para cobrir todos os custos</p>
                         </div>
-                        <div class="kpi-card text-center">
-                            <h4 class="text-sm font-medium text-slate-500">Nº de Entregadores</h4>
-                            <p id="entregadores" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0</p>
-                        </div>
-                        <div class="kpi-card text-center">
-                            <h4 class="text-sm font-medium text-slate-500">Custo por Pedido</h4>
+                         <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">CPO atual (Cost per Order)</h4>
                             <p id="custoPorPedido" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">Custo Total Mensal / Volumetria total</p>
                         </div>
                         <div class="kpi-card text-center">
-                            <h4 class="text-sm font-medium text-slate-500">Break-Even (Pedidos)</h4>
-                            <p id="breakEven" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0</p>
+                            <h4 class="text-sm font-medium text-slate-500">Custo Diário por Entregador (Proj.)</h4>
+                            <p id="custoDiarioEntregador" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">Varia conforme o modelo de pagamento selecionado</p>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Variação do CPO</h4>
+                            <p id="variacaoCPO" class="text-2xl md:text-3xl font-bold mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">CPO Atual - CPO Alvo</p>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Entregadores para Vol. Atual</h4>
+                            <p id="entregadoresAtuais" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0</p>
+                            <p class="text-xs text-slate-400 mt-1">Entregadores necessários para a volumetria mensal atual</p>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Entregadores para o Break-Even</h4>
+                            <p id="entregadoresBEP" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">N/A</p>
+                            <p class="text-xs text-slate-400 mt-1">Entregadores necessários para atingir o ponto de equilíbrio</p>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Custo Alvo por Pedido (CPO)</h4>
+                            <p id="custoAlvoPorPedido" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">R$ 0,00</p>
+                            <p class="text-xs text-slate-400 mt-1">Baseado no valor e modelo de pagamento alvo</p>
                         </div>
                     </div>
                 </div>
-
+                
                 <div class="kpi-card">
                      <h3 class="text-lg font-semibold text-slate-800 mb-1">Análise de Ponto de Equilíbrio e Lucratividade</h3>
                      <p class="text-sm text-slate-500 mb-4">O gráfico abaixo ilustra a relação entre receitas, custos e o volume de pedidos. O ponto onde a linha de receita cruza a de custos é o seu ponto de equilíbrio (break-even), a partir do qual a operação começa a gerar lucro.</p>
@@ -226,36 +308,108 @@
                 volumetriaTotal: document.getElementById('volumetriaTotal'),
                 kmPorEntrega: document.getElementById('kmPorEntrega'),
                 valorKm: document.getElementById('valorKm'),
-                valorPedido: document.getElementById('valorPedido'),
                 valorDiaria: document.getElementById('valorDiaria'),
-                custoFixo: document.getElementById('custoFixo'),
+                valorPedido: document.getElementById('valorPedido'),
                 custoVariavelPedido: document.getElementById('custoVariavelPedido'),
                 receitaMediaPedido: document.getElementById('receitaMediaPedido'),
+                salariosEncargos: document.getElementById('salariosEncargos'),
+                tecnologia: document.getElementById('tecnologia'),
+                operacional: document.getElementById('operacional'),
+                outros: document.getElementById('outros'),
+                custoAlvoSlider: document.getElementById('custoAlvoSlider'),
+                salarioMinimoDiarioSlider: document.getElementById('salarioMinimoDiarioSlider')
             };
 
             const valueSpans = {
                 diasUteisValue: document.getElementById('diasUteisValue'),
                 pedidosPorEntregadorValue: document.getElementById('pedidosPorEntregadorValue'),
-                volumetriaTotalValue: document.getElementById('volumetriaTotalValue'),
                 kmPorEntregaValue: document.getElementById('kmPorEntregaValue'),
                 valorKmValue: document.getElementById('valorKmValue'),
-                valorPedidoValue: document.getElementById('valorPedidoValue'),
                 valorDiariaValue: document.getElementById('valorDiariaValue'),
-                custoFixoValue: document.getElementById('custoFixoValue'),
+                valorPedidoValue: document.getElementById('valorPedidoValue'),
                 custoVariavelPedidoValue: document.getElementById('custoVariavelPedidoValue'),
                 receitaMediaPedidoValue: document.getElementById('receitaMediaPedidoValue'),
+                custoAlvoSliderValue: document.getElementById('custoAlvoSliderValue'),
+                salarioMinimoDiarioSliderValue: document.getElementById('salarioMinimoDiarioSliderValue')
             };
 
             const outputs = {
                 receitaTotal: document.getElementById('receitaTotal'),
                 custoTotal: document.getElementById('custoTotal'),
                 lucroPrejuizo: document.getElementById('lucroPrejuizo'),
-                volumetriaTotal: document.getElementById('volumetriaTotalOutput'),
-                entregadores: document.getElementById('entregadores'),
+                breakEvenPoint: document.getElementById('breakEvenPoint'),
                 custoPorPedido: document.getElementById('custoPorPedido'),
-                breakEven: document.getElementById('breakEven'),
+                custoDiarioEntregador: document.getElementById('custoDiarioEntregador'),
+                custoAlvoPorPedido: document.getElementById('custoAlvoPorPedido'),
+                variacaoCPO: document.getElementById('variacaoCPO'),
+                entregadoresAtuais: document.getElementById('entregadoresAtuais'),
+                entregadoresBEP: document.getElementById('entregadoresBEP')
             };
 
+            const paymentModelRadios = document.getElementsByName('paymentModel');
+            const valorKmInput = document.getElementById('valorKm');
+            const valorDiariaInput = document.getElementById('valorDiaria');
+            const valorPedidoInput = document.getElementById('valorPedido');
+            const paymentSection = document.getElementById('paymentSection');
+
+            const targetModelRadios = document.getElementsByName('targetModel');
+            const custoAlvoSlider = document.getElementById('custoAlvoSlider');
+            const targetLabel = document.getElementById('targetLabel');
+            const targetSection = document.getElementById('targetSection');
+
+            function updateInputVisibility(modelRadios, inputs) {
+                 const currentModel = document.querySelector(`input[name="${modelRadios[0].name}"]:checked`).value;
+                 
+                 inputs.forEach(input => {
+                     const isVisible = input.id.toLowerCase().includes(currentModel);
+                     input.closest('div').style.display = isVisible ? 'block' : 'none';
+                 });
+            }
+
+            function updatePaymentInputsVisibility() {
+                updateInputVisibility(paymentModelRadios, [valorKmInput, valorDiariaInput, valorPedidoInput]);
+            }
+            
+            function updateTargetInputsVisibility() {
+                const currentModel = document.querySelector('input[name="targetModel"]:checked').value;
+                const ranges = {
+                    'km': { min: 0.1, max: 10, step: 0.1, label: 'Valor do Custo Alvo (R$/km)' },
+                    'diaria': { min: 50, max: 300, step: 1, label: 'Valor do Custo Alvo (R$/diária)' },
+                    'pedido': { min: 1, max: 15, step: 0.25, label: 'Valor do Custo Alvo (R$/pedido)' }
+                };
+                const range = ranges[currentModel];
+                custoAlvoSlider.min = range.min;
+                custoAlvoSlider.max = range.max;
+                custoAlvoSlider.step = range.step;
+                custoAlvoSlider.value = range.min; 
+                targetLabel.querySelector('span:first-child').textContent = range.label;
+            }
+
+            function updateAllInputStates() {
+                const minWage = parseFloat(inputs.salarioMinimoDiarioSlider.value);
+                const isDisabled = minWage > 0;
+
+                paymentSection.classList.toggle('disabled-overlay', isDisabled);
+                targetSection.classList.toggle('disabled-overlay', isDisabled);
+
+                const allPaymentInputs = [
+                    ...Array.from(paymentModelRadios),
+                    valorKmInput,
+                    valorDiariaInput,
+                    valorPedidoInput
+                ];
+                allPaymentInputs.forEach(input => input.disabled = isDisabled);
+
+                const allTargetInputs = [
+                    ...Array.from(targetModelRadios),
+                    custoAlvoSlider
+                ];
+                allTargetInputs.forEach(input => input.disabled = isDisabled);
+            }
+
+            updatePaymentInputsVisibility();
+            updateTargetInputsVisibility();
+            
             const formatCurrency = (value) => {
                 if (isNaN(value) || !isFinite(value)) return 'R$ 0,00';
                 return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -264,7 +418,7 @@
             const formatNumber = (value) => {
                  if (isNaN(value) || !isFinite(value)) return 'N/A';
                  return Math.ceil(value).toLocaleString('pt-BR');
-            }
+            };
 
             const ctx = document.getElementById('profitabilityChart').getContext('2d');
             const profitabilityChart = new Chart(ctx, {
@@ -291,13 +445,14 @@
                             tension: 0.3,
                         },
                         {
-                            label: 'Lucro/Prejuízo',
+                            label: 'Custo Alvo por Pedido',
                             data: [],
-                            borderColor: '#ca8a04',
-                            backgroundColor: 'rgba(202, 138, 4, 0.1)',
+                            borderColor: '#2563eb',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
                             borderWidth: 2,
                             fill: false,
-                            tension: 0.3,
+                            tension: 0,
                         }
                     ]
                 },
@@ -342,111 +497,123 @@
             function calculateAndRender() {
                 const vals = {};
                 for (const key in inputs) {
-                    if (key === 'paymentModel') {
-                         vals[key] = document.querySelector('input[name="paymentModel"]:checked').value;
-                    } else {
-                        vals[key] = parseFloat(inputs[key].value);
+                     vals[key] = parseFloat(inputs[key].value);
+                }
+                const currentPaymentModel = document.querySelector('input[name="paymentModel"]:checked').value;
+                
+                const custoFixoBase = vals.salariosEncargos + vals.tecnologia + vals.operacional + vals.outros;
+                const volumetriaTotal = vals.volumetriaTotal;
+                const dailyCapacity = vals.pedidosPorEntregador * vals.diasUteis;
+                
+                const entregadoresNecessariosAtualmente = Math.ceil(volumetriaTotal / dailyCapacity);
+                const receitaTotal = volumetriaTotal * vals.receitaMediaPedido;
+                
+                let custoMaoDeObra = 0;
+                let custoEntrega = 0;
+                let custoDiarioEntregador = 0;
+                let variavelCustoMotoboy = 0;
+
+                // New logic based on the minimum daily wage slider
+                if (vals.salarioMinimoDiarioSlider > 0) {
+                    custoDiarioEntregador = vals.salarioMinimoDiarioSlider;
+                    custoMaoDeObra = entregadoresNecessariosAtualmente * vals.diasUteis * custoDiarioEntregador;
+                    variavelCustoMotoboy = vals.salarioMinimoDiarioSlider / vals.pedidosPorEntregador;
+                } else {
+                    if (currentPaymentModel === 'km') {
+                        custoEntrega = vals.kmPorEntrega * vals.valorKm;
+                        custoMaoDeObra = volumetriaTotal * custoEntrega;
+                        custoDiarioEntregador = vals.pedidosPorEntregador * vals.kmPorEntrega * vals.valorKm;
+                        variavelCustoMotoboy = custoEntrega;
+                    } else if (currentPaymentModel === 'diaria') {
+                        custoEntrega = vals.pedidosPorEntregador > 0 ? vals.valorDiaria / vals.pedidosPorEntregador : 0;
+                        custoMaoDeObra = entregadoresNecessariosAtualmente * vals.diasUteis * vals.valorDiaria;
+                        custoDiarioEntregador = vals.valorDiaria;
+                        variavelCustoMotoboy = custoEntrega;
+                    } else if (currentPaymentModel === 'pedido') {
+                        custoEntrega = vals.valorPedido;
+                        custoMaoDeObra = volumetriaTotal * custoEntrega;
+                        custoDiarioEntregador = vals.valorPedido * vals.pedidosPorEntregador;
+                        variavelCustoMotoboy = custoEntrega;
                     }
                 }
 
-                const volumetriaTotal = vals.volumetriaTotal;
-                const entregadores = volumetriaTotal / (vals.pedidosPorEntregador * vals.diasUteis);
-                const receitaTotal = volumetriaTotal * vals.receitaMediaPedido;
-                
-                let custoMotoboy = 0;
-                if (vals.paymentModel === 'km') {
-                    custoMotoboy = volumetriaTotal * vals.kmPorEntrega * vals.valorKm;
-                } else if (vals.paymentModel === 'pedido') {
-                    custoMotoboy = volumetriaTotal * vals.valorPedido;
-                } else if (vals.paymentModel === 'diaria') {
-                    custoMotoboy = entregadores * vals.diasUteis * vals.valorDiaria;
-                }
-
                 const custoVariavelTotal = volumetriaTotal * vals.custoVariavelPedido;
-                const custoTotal = vals.custoFixo + custoVariavelTotal + custoMotoboy;
+                const custoTotal = custoFixoBase + custoVariavelTotal + custoMaoDeObra;
                 const lucroPrejuizo = receitaTotal - custoTotal;
                 const custoPorPedido = volumetriaTotal > 0 ? custoTotal / volumetriaTotal : 0;
-                
                 const receitaPorPedido = vals.receitaMediaPedido;
-                let custoVariavelUnitarioTotal = vals.custoVariavelPedido;
-                if (vals.paymentModel === 'km') {
-                     custoVariavelUnitarioTotal += vals.kmPorEntrega * vals.valorKm;
-                } else if (vals.paymentModel === 'pedido') {
-                    custoVariavelUnitarioTotal += vals.valorPedido;
-                } 
                 
-                const margemContribuicao = receitaPorPedido - custoVariavelUnitarioTotal;
-                let breakEven = 0;
-                if (margemContribuicao > 0) {
-                     breakEven = vals.custoFixo / margemContribuicao;
-                } else if (vals.paymentModel === 'diaria') {
-                     const receitaDiariaEntregador = vals.pedidosPorEntregador * vals.receitaMediaPedido;
-                     const custoVarDiarioEntregador = vals.pedidosPorEntregador * vals.custoVariavelPedido + vals.valorDiaria;
-                     const margemDiariaEntregador = receitaDiariaEntregador - custoVarDiarioEntregador;
-                     if(margemDiariaEntregador > 0) {
-                        const entregadoresNecessarios = vals.custoFixo / (margemDiariaEntregador * vals.diasUteis);
-                        breakEven = entregadoresNecessarios * vals.pedidosPorEntregador * vals.diasUteis;
-                     } else {
-                        breakEven = Infinity;
-                     }
+                let custoAlvoPorPedido = 0;
+                if (vals.salarioMinimoDiarioSlider > 0) {
+                     custoAlvoPorPedido = vals.salarioMinimoDiarioSlider / vals.pedidosPorEntregador;
                 } else {
-                    breakEven = Infinity;
+                     custoAlvoPorPedido = vals.custoAlvoSlider / vals.pedidosPorEntregador;
                 }
-               
+                
+
+                const variacaoCPO = custoPorPedido - custoAlvoPorPedido;
+                
+                // Cálculo do Ponto de Equilíbrio (Break-Even)
+                const totalVariableCostPerOrder = vals.custoVariavelPedido + variavelCustoMotoboy;
+                const unitMargin = receitaPorPedido - totalVariableCostPerOrder;
+                let breakEvenPoint = "N/A";
+                let entregadoresParaBEP = "N/A";
+
+                if (unitMargin > 0) {
+                    breakEvenPoint = Math.ceil(custoFixoBase / unitMargin);
+                    const dailyCapacityBEP = vals.pedidosPorEntregador * vals.diasUteis;
+                    entregadoresParaBEP = Math.ceil(breakEvenPoint / dailyCapacityBEP);
+                } else {
+                    breakEvenPoint = "Não há BEP"
+                    entregadoresParaBEP = "N/A"
+                }
+
+                
                 outputs.receitaTotal.textContent = formatCurrency(receitaTotal);
                 outputs.custoTotal.textContent = formatCurrency(custoTotal);
                 outputs.lucroPrejuizo.textContent = formatCurrency(lucroPrejuizo);
                 outputs.lucroPrejuizo.classList.toggle('text-green-600', lucroPrejuizo >= 0);
                 outputs.lucroPrejuizo.classList.toggle('text-red-600', lucroPrejuizo < 0);
-                outputs.volumetriaTotal.textContent = formatNumber(volumetriaTotal);
-                outputs.entregadores.textContent = formatNumber(entregadores);
+                outputs.breakEvenPoint.textContent = typeof breakEvenPoint === 'number' ? formatNumber(breakEvenPoint) + ' pedidos' : breakEvenPoint;
                 outputs.custoPorPedido.textContent = formatCurrency(custoPorPedido);
-                outputs.breakEven.textContent = formatNumber(breakEven);
+                outputs.custoDiarioEntregador.textContent = formatCurrency(custoDiarioEntregador);
+                outputs.custoAlvoPorPedido.textContent = formatCurrency(custoAlvoPorPedido);
+                outputs.variacaoCPO.textContent = formatCurrency(variacaoCPO);
+                outputs.variacaoCPO.classList.toggle('text-green-600', variacaoCPO <= 0);
+                outputs.variacaoCPO.classList.toggle('text-red-600', variacaoCPO > 0);
+                
+                outputs.entregadoresAtuais.textContent = formatNumber(entregadoresNecessariosAtualmente);
+                outputs.entregadoresBEP.textContent = typeof entregadoresParaBEP === 'number' ? formatNumber(entregadoresParaBEP) + ' entregadores' : entregadoresParaBEP;
 
-                updateChart(volumetriaTotal, receitaPorPedido, vals.custoFixo, vals);
+                updateChart(volumetriaTotal, receitaPorPedido, custoFixoBase, totalVariableCostPerOrder, custoAlvoPorPedido);
             }
             
-            function updateChart(currentVolume, receitaUnitaria, custoFixo, currentVals) {
+            function updateChart(currentVolume, receitaUnitaria, custoFixoBase, totalVariableCostPerOrder, custoAlvoPorPedido) {
                 const labels = [];
                 const receitaData = [];
                 const custoData = [];
-                const lucroData = [];
+                const custoAlvoData = [];
 
                 const maxVolume = Math.max(currentVolume * 2, 1000);
                 const step = Math.ceil(maxVolume / 20);
-
+                
                 for (let vol = 0; vol <= maxVolume; vol += step) {
                     labels.push(vol);
                     const receita = vol * receitaUnitaria;
-                    let custo = custoFixo;
-                    let custoMotoboy = 0;
                     
-                    if (currentVals.paymentModel === 'km') {
-                        custoMotoboy = vol * currentVals.kmPorEntrega * currentVals.valorKm;
-                    } else if (currentVals.paymentModel === 'pedido') {
-                        custoMotoboy = vol * currentVals.valorPedido;
-                    } else if (currentVals.paymentModel === 'diaria') {
-                        if (currentVals.pedidosPorEntregador > 0) {
-                            const entregadoresNecessarios = Math.ceil(vol / (currentVals.pedidosPorEntregador * currentVals.diasUteis));
-                            custoMotoboy = entregadoresNecessarios * currentVals.diasUteis * currentVals.valorDiaria;
-                        }
-                    }
-
-                    const custoVariavelTotal = vol * currentVals.custoVariavelPedido;
-                    custo += custoVariavelTotal + custoMotoboy;
+                    const custo = custoFixoBase + (vol * totalVariableCostPerOrder);
 
                     receitaData.push(receita);
                     custoData.push(custo);
-                    lucroData.push(receita - custo);
+                    custoAlvoData.push(custoAlvoPorPedido * vol);
                 }
 
                 profitabilityChart.data.labels = labels;
                 profitabilityChart.data.datasets[0].data = receitaData;
                 profitabilityChart.data.datasets[1].data = custoData;
-                profitabilityChart.data.datasets[2].data = lucroData;
+                profitabilityChart.data.datasets[2].data = custoAlvoData;
                 profitabilityChart.update();
             }
-
 
             const allInputs = document.querySelectorAll('#input-form input');
             allInputs.forEach(input => {
@@ -454,17 +621,29 @@
                      if (input.type === 'range') {
                         const valueSpan = document.getElementById(input.id + 'Value');
                         if (valueSpan) {
-                            if (input.step < 1) {
-                                valueSpan.textContent = parseFloat(input.value).toFixed(2);
-                            } else {
-                                valueSpan.textContent = input.value;
-                            }
+                             if (['valorKm', 'valorDiaria', 'valorPedido', 'custoVariavelPedido', 'receitaMediaPedido', 'custoAlvoSlider', 'salarioMinimoDiarioSlider'].includes(input.id)) {
+                                 valueSpan.textContent = parseFloat(input.value).toFixed(2);
+                             } else {
+                                 valueSpan.textContent = input.value;
+                             }
                         }
                     }
+                    updateAllInputStates();
                     calculateAndRender();
                 });
             });
+            
+            paymentModelRadios.forEach(radio => radio.addEventListener('change', () => {
+                updatePaymentInputsVisibility();
+                calculateAndRender();
+            }));
 
+            targetModelRadios.forEach(radio => radio.addEventListener('change', () => {
+                updateTargetInputsVisibility();
+                calculateAndRender();
+            }));
+
+            updateAllInputStates();
             calculateAndRender();
         });
     </script>
