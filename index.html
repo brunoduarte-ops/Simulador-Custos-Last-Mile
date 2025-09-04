@@ -279,12 +279,17 @@
                         <div class="kpi-card text-center">
                             <h4 class="text-sm font-medium text-slate-500">Entregadores para o Break-Even</h4>
                             <p id="entregadoresBEP" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">N/A</p>
-                            <p class="text-xs text-slate-400 mt-1">Entregadores necessários para atingir o ponto de equilíbrio</p>
+                            <p class="text-xs text-slate-400 mt-1">Entregadores necessarios para a volumetria projetada no break-even</p>
                         </div>
                         <div class="kpi-card text-center">
                             <h4 class="text-sm font-medium text-slate-500">Custo Alvo por Pedido (CPO)</h4>
                             <p id="custoAlvoPorPedido" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">R$ 0,00</p>
                             <p class="text-xs text-slate-400 mt-1">Baseado no valor e modelo de pagamento alvo</p>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Aumento de Receita Proj.</h4>
+                            <p id="aumentoReceita" class="text-2xl md:text-3xl font-bold text-amber-600 mt-1">0%</p>
+                            <p class="text-xs text-slate-400 mt-1">Aumento de receita para atingir o break-even</p>
                         </div>
                     </div>
                 </div>
@@ -343,7 +348,8 @@
                 custoAlvoPorPedido: document.getElementById('custoAlvoPorPedido'),
                 variacaoCPO: document.getElementById('variacaoCPO'),
                 entregadoresAtuais: document.getElementById('entregadoresAtuais'),
-                entregadoresBEP: document.getElementById('entregadoresBEP')
+                entregadoresBEP: document.getElementById('entregadoresBEP'),
+                aumentoReceita: document.getElementById('aumentoReceita')
             };
 
             const paymentModelRadios = document.getElementsByName('paymentModel');
@@ -547,16 +553,21 @@
                 if (vals.salarioMinimoDiarioSlider > 0) {
                      custoAlvoPorPedido = vals.salarioMinimoDiarioSlider / vals.pedidosPorEntregador;
                 } else {
-                     custoAlvoPorPedido = vals.custoAlvoSlider / vals.pedidosPorEntregador;
+                     if (document.querySelector('input[name="targetModel"]:checked').value === 'km') {
+                        custoAlvoPorPedido = vals.custoAlvoSlider * vals.kmPorEntrega;
+                     } else if (document.querySelector('input[name="targetModel"]:checked').value === 'diaria') {
+                         custoAlvoPorPedido = vals.custoAlvoSlider / vals.pedidosPorEntregador;
+                     } else if (document.querySelector('input[name="targetModel"]:checked').value === 'pedido') {
+                         custoAlvoPorPedido = vals.custoAlvoSlider;
+                     }
                 }
                 
-
                 const variacaoCPO = custoPorPedido - custoAlvoPorPedido;
                 
                 // Cálculo do Ponto de Equilíbrio (Break-Even)
                 const totalVariableCostPerOrder = vals.custoVariavelPedido + variavelCustoMotoboy;
                 const unitMargin = receitaPorPedido - totalVariableCostPerOrder;
-                let breakEvenPoint = "N/A";
+                let breakEvenPoint = "Não há BEP";
                 let entregadoresParaBEP = "N/A";
 
                 if (unitMargin > 0) {
@@ -565,9 +576,12 @@
                     entregadoresParaBEP = Math.ceil(breakEvenPoint / dailyCapacityBEP);
                 } else {
                     breakEvenPoint = "Não há BEP"
-                    entregadoresParaBEP = "N/A"
                 }
 
+                let aumentoPercentualReceita = "N/A";
+                if (entregadoresNecessariosAtualmente > 0 && typeof entregadoresParaBEP === 'number' && entregadoresParaBEP > 0) {
+                    aumentoPercentualReceita = ((entregadoresParaBEP / entregadoresNecessariosAtualmente) - 1) * 100;
+                }
                 
                 outputs.receitaTotal.textContent = formatCurrency(receitaTotal);
                 outputs.custoTotal.textContent = formatCurrency(custoTotal);
@@ -583,7 +597,9 @@
                 outputs.variacaoCPO.classList.toggle('text-red-600', variacaoCPO > 0);
                 
                 outputs.entregadoresAtuais.textContent = formatNumber(entregadoresNecessariosAtualmente);
-                outputs.entregadoresBEP.textContent = typeof entregadoresParaBEP === 'number' ? formatNumber(entregadoresParaBEP) + ' entregadores' : entregadoresParaBEP;
+                outputs.entregadoresBEP.textContent = typeof entregadoresParaBEP === 'number' ? formatNumber(entregadoresParaBEP) : entregadoresParaBEP;
+                outputs.aumentoReceita.textContent = typeof aumentoPercentualReceita === 'number' ? aumentoPercentualReceita.toFixed(2) + '%' : aumentoPercentualReceita;
+
 
                 updateChart(volumetriaTotal, receitaPorPedido, custoFixoBase, totalVariableCostPerOrder, custoAlvoPorPedido);
             }
