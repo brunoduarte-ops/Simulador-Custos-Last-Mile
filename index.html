@@ -135,6 +135,10 @@
                                 <label for="kmPorEntrega" class="slider-label"><span>Média de km / entrega</span><span class="slider-value" id="kmPorEntregaValue">5</span></label>
                                 <input type="range" id="kmPorEntrega" min="1" max="50" value="5" class="w-full">
                             </div>
+                            <div>
+                                <label for="velocidadeMedia" class="block text-sm font-medium text-slate-600 mb-1">Velocidade média por km rodado (km/h)</label>
+                                <input type="number" id="velocidadeMedia" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500" placeholder="Ex: 20" value="20" min="0">
+                            </div>
                         </div>
                     </div>
 
@@ -262,6 +266,18 @@
                             <p class="text-xs text-slate-400 mt-1">Custo Total Mensal / Volumetria total</p>
                         </div>
                         <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Aumento de Receita Proj.</h4>
+                            <p id="aumentoReceita" class="text-2xl md:text-3xl font-bold text-amber-600 mt-1">0%</p>
+                            <p class="text-xs text-slate-400 mt-1">Aumento de receita para atingir o break-even</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-bold mb-1 text-slate-900">Projeções</h2>
+                    <p class="text-sm text-slate-500 mb-4">Esses indicadores ajudam a projetar o impacto de mudanças operacionais no seu custo de entrega e na eficiência geral da sua operação.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                        <div class="kpi-card text-center">
                             <h4 class="text-sm font-medium text-slate-500">Custo Diário por Entregador (Proj.)</h4>
                             <p id="custoDiarioEntregador" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">R$ 0,00</p>
                             <p class="text-xs text-slate-400 mt-1">Varia conforme o modelo de pagamento selecionado</p>
@@ -287,9 +303,14 @@
                             <p class="text-xs text-slate-400 mt-1">Baseado no valor e modelo de pagamento alvo</p>
                         </div>
                         <div class="kpi-card text-center">
-                            <h4 class="text-sm font-medium text-slate-500">Aumento de Receita Proj.</h4>
-                            <p id="aumentoReceita" class="text-2xl md:text-3xl font-bold text-amber-600 mt-1">0%</p>
-                            <p class="text-xs text-slate-400 mt-1">Aumento de receita para atingir o break-even</p>
+                            <h4 class="text-sm font-medium text-slate-500">Tempo Médio da Rota</h4>
+                            <p id="tempoMedioRota" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0 min</p>
+                            <p class="text-xs text-slate-400 mt-1">Tempo total de viagem + tempo de parada para todos os pedidos do dia</p>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <h4 class="text-sm font-medium text-slate-500">Média de km rodados / entregador</h4>
+                            <p id="totalKm" class="text-2xl md:text-3xl font-bold text-slate-700 mt-1">0 km</p>
+                            <p class="text-xs text-slate-400 mt-1">Pedidos por entregador / dia * Média de km / entrega</p>
                         </div>
                     </div>
                 </div>
@@ -312,6 +333,7 @@
                 pedidosPorEntregador: document.getElementById('pedidosPorEntregador'),
                 volumetriaTotal: document.getElementById('volumetriaTotal'),
                 kmPorEntrega: document.getElementById('kmPorEntrega'),
+                velocidadeMedia: document.getElementById('velocidadeMedia'),
                 valorKm: document.getElementById('valorKm'),
                 valorDiaria: document.getElementById('valorDiaria'),
                 valorPedido: document.getElementById('valorPedido'),
@@ -349,7 +371,9 @@
                 variacaoCPO: document.getElementById('variacaoCPO'),
                 entregadoresAtuais: document.getElementById('entregadoresAtuais'),
                 entregadoresBEP: document.getElementById('entregadoresBEP'),
-                aumentoReceita: document.getElementById('aumentoReceita')
+                tempoMedioRota: document.getElementById('tempoMedioRota'),
+                aumentoReceita: document.getElementById('aumentoReceita'),
+                totalKm: document.getElementById('totalKm')
             };
 
             const paymentModelRadios = document.getElementsByName('paymentModel');
@@ -582,6 +606,32 @@
                 if (entregadoresNecessariosAtualmente > 0 && typeof entregadoresParaBEP === 'number' && entregadoresParaBEP > 0) {
                     aumentoPercentualReceita = ((entregadoresParaBEP / entregadoresNecessariosAtualmente) - 1) * 100;
                 }
+
+                // Cálculo do Tempo Médio da Rota
+                let tempoMedioRota = 0;
+                let tempoViagemMin = 0;
+                let tempoParadaMin = 0;
+                if (vals.velocidadeMedia > 0) {
+                    const totalKmDiario = vals.kmPorEntrega * vals.pedidosPorEntregador;
+                    tempoViagemMin = (totalKmDiario / vals.velocidadeMedia) * 60;
+                    tempoParadaMin = vals.pedidosPorEntregador * 5; // Assumindo 5 minutos de parada por pedido
+                    tempoMedioRota = tempoViagemMin + tempoParadaMin;
+                }
+                
+                let tempoFormatado = "N/A";
+                if (!isNaN(tempoMedioRota) && tempoMedioRota > 0) {
+                    if (tempoMedioRota >= 60) {
+                        const horas = Math.floor(tempoMedioRota / 60);
+                        const minutos = Math.round(tempoMedioRota % 60);
+                        tempoFormatado = `${horas}h ${minutos}min`;
+                    } else {
+                        tempoFormatado = `${tempoMedioRota.toFixed(0)} min`;
+                    }
+                }
+
+                // Cálculo da quantidade total de km rodados POR ENTREGADOR
+                const totalKmRodadosPorEntregador = vals.kmPorEntrega * vals.pedidosPorEntregador;
+
                 
                 outputs.receitaTotal.textContent = formatCurrency(receitaTotal);
                 outputs.custoTotal.textContent = formatCurrency(custoTotal);
@@ -599,6 +649,8 @@
                 outputs.entregadoresAtuais.textContent = formatNumber(entregadoresNecessariosAtualmente);
                 outputs.entregadoresBEP.textContent = typeof entregadoresParaBEP === 'number' ? formatNumber(entregadoresParaBEP) : entregadoresParaBEP;
                 outputs.aumentoReceita.textContent = typeof aumentoPercentualReceita === 'number' ? aumentoPercentualReceita.toFixed(2) + '%' : aumentoPercentualReceita;
+                outputs.tempoMedioRota.textContent = tempoFormatado;
+                outputs.totalKm.textContent = isNaN(totalKmRodadosPorEntregador) ? 'N/A' : `${totalKmRodadosPorEntregador.toLocaleString('pt-BR')} km`;
 
 
                 updateChart(volumetriaTotal, receitaPorPedido, custoFixoBase, totalVariableCostPerOrder, custoAlvoPorPedido);
